@@ -10,11 +10,14 @@ class MemoryAllocator
 public:
     void* mem_alloc(size_t size);
     int mem_free(char* addr, size_t size);
+
 private:
     struct DataBlock{
         size_t size;
         DataBlock *prev, *next;
     };
+
+    static DataBlock* memFreeHead;
 };
 
 
