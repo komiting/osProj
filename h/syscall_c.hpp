@@ -2,6 +2,22 @@
 #define syscall_c
 #include "../lib/mem.h"
 
+constexpr uint64 MEM_ALLOC = 0x01;
+constexpr uint64 MEM_FREE= 0x02;
+constexpr uint64 MEM_FREE_SPACE= 0x03;
+constexpr uint64 MEM_LARGEST_BLOCK_SYSCALL= 0x04;
+constexpr uint64 THREAD_CREATE = 0x11;
+constexpr uint64 THREAD_EXIT = 0x12;
+constexpr uint64 THREAD_DISPATCH = 0x13;
+constexpr uint64 THREAD_JOIN = 0x14;
+constexpr uint64 SEM_OPEN = 0x21;
+constexpr uint64 SEM_CLOSE = 0x22;
+constexpr uint64 SEM_WAIT = 0x23;
+constexpr uint64 SEM_SIGNAL = 0x24;
+constexpr uint64 TIME_SLEEP = 0x31;
+constexpr uint64 GETC = 0x41;
+constexpr uint64 PUTC = 0x42;
+
 void* mem_alloc(size_t size);
 
 int mem_free(void*);
