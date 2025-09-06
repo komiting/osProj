@@ -2,10 +2,13 @@
 #include "../h/workers.hpp"
 #include "../h/print.hpp"
 #include "../h/riscv.hpp"
+#include "../h/MemoryAllocator.hpp"
 int main(){
     TCB *threads[5];
-
     threads[0] = TCB::createCoroutine(nullptr);
+
+    MemoryAllocator::initMemory();
+
 
     TCB::running = threads[0];
     threads[1] = TCB::createCoroutine(workerBodyA);
