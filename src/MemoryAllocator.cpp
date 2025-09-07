@@ -5,14 +5,15 @@
 #include "../h/MemoryAllocator.hpp"
 
 MemoryAllocator::FreeBlock* MemoryAllocator::freeMemHead;
-void *MemoryAllocator::mem_alloc(size_t size)
+void *MemoryAllocator::mem_alloc(size_t numOfBlocks)
 {
+    size_t size=numOfBlocks*MEM_BLOCK_SIZE;
     if(size <=0 || !freeMemHead) return nullptr;
     MemoryAllocator::FreeBlock* curr = freeMemHead;
-    // zaokruzi na ceo blok
-    if(size%MEM_BLOCK_SIZE){
-        size=((size+MEM_BLOCK_SIZE-1)/MEM_BLOCK_SIZE)*MEM_BLOCK_SIZE;
-    }
+//    // zaokruzi na ceo blok - u C API-u vec zaokruzujem na blokove i prosledjujem broj blokova, NE broj bajtova
+//    if(size%MEM_BLOCK_SIZE){
+//        size=((size+MEM_BLOCK_SIZE-1)/MEM_BLOCK_SIZE)*MEM_BLOCK_SIZE;
+//    }
     while(curr && curr->size<size) curr=curr->next;
     if(!curr) return nullptr;
     if(curr->size> size+sizeof(FreeBlock)){
