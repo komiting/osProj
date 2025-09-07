@@ -7,6 +7,7 @@
 #include "../lib/console.h"
 #include "../h/syscall_c.hpp"
 #include "../h/MemoryAllocator.hpp"
+#include "../h/print.hpp"
 void Riscv::popSppSpie() //ova fja moze biti interesantna ako nas interesuje kada ce neki procesor promeniti kontekst
 {
     //hocemo da se vratimo tamo gde ce ova funkcija biti pozvana (threadWrapper), ne mozemo samo pozvati sret jer
@@ -49,6 +50,83 @@ void Riscv::handleSupervisorTrap(){
                 __asm__ volatile("sd a0,80(fp)");
                 break;
             }
+            case MEM_FREE_SPACE:
+            {
+                size_t volatile space;
+                space=MemoryAllocator::getFree();
+                __asm__ volatile("mv a0, %0"::"r"(space));
+                __asm__ volatile("sd a0,80(fp)");
+                break;
+            }
+            case MEM_LARGEST_BLOCK_SYSCALL:
+            {
+                size_t volatile block;
+                block=MemoryAllocator::getLargestFreeBlock();
+                __asm__ volatile("mv a0, %0"::"r"(block));
+                __asm__ volatile("sd a0,80(fp)");
+                break;
+            }
+            case THREAD_CREATE:
+            {
+
+                break;
+            }
+            case THREAD_DISPATCH:
+            {
+
+                break;
+            }
+            case THREAD_EXIT:
+            {
+
+                break;
+            }
+            case SEM_OPEN:
+            {
+
+                break;
+            }
+            case SEM_CLOSE:
+            {
+
+                break;
+            }
+            case SEM_WAIT:
+            {
+
+                break;
+            }
+            case SEM_SIGNAL:
+            {
+
+                break;
+            }
+            case TIME_SLEEP:
+            {
+
+                break;
+            }
+            case GETC:
+            {
+
+                break;
+            }
+            case PUTC:
+            {
+
+                break;
+            }
+            default:
+            {
+                printString("Unknown error, system is shitting down\n");
+                uint32 val = 0x5555;
+                uint64 addr = 0x100000;
+                __asm__ volatile("sw %[val], 0(%[addr])" : : [val] "r"(val), [addr] "r"(addr));
+                while (1);
+                break;
+            }
+
+
         }
 
 /*

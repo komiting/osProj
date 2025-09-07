@@ -9,7 +9,6 @@ constexpr uint64 MEM_LARGEST_BLOCK_SYSCALL= 0x04;
 constexpr uint64 THREAD_CREATE = 0x11;
 constexpr uint64 THREAD_EXIT = 0x12;
 constexpr uint64 THREAD_DISPATCH = 0x13;
-constexpr uint64 THREAD_JOIN = 0x14;
 constexpr uint64 SEM_OPEN = 0x21;
 constexpr uint64 SEM_CLOSE = 0x22;
 constexpr uint64 SEM_WAIT = 0x23;

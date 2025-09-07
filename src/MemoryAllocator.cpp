@@ -5,10 +5,12 @@
 #include "../h/MemoryAllocator.hpp"
 
 MemoryAllocator::FreeBlock* MemoryAllocator::freeMemHead;
+size_t MemoryAllocator::totalFreeMem;
+size_t MemoryAllocator::largestFreeBlock;
 void *MemoryAllocator::mem_alloc(size_t numOfBlocks)
 {
     size_t size=numOfBlocks*MEM_BLOCK_SIZE;
-    if(size <=0 || !freeMemHead) return nullptr;
+    if(size <=0 || !freeMemHead || size>largestFreeBlock) return nullptr;
     MemoryAllocator::FreeBlock* curr = freeMemHead;
 //    // zaokruzi na ceo blok - u C API-u vec zaokruzujem na blokove i prosledjujem broj blokova, NE broj bajtova
 //    if(size%MEM_BLOCK_SIZE){
@@ -19,6 +21,9 @@ void *MemoryAllocator::mem_alloc(size_t numOfBlocks)
     if(curr->size> size+sizeof(FreeBlock)){
         //ostaje nam blok       <-curr->size odavde pokazuje
         //| datablock metadata |     allocated     | new datablock metadata | remaining size |
+        bool find=false;
+        totalFreeMem=totalFreeMem-size-sizeof(FreeBlock);
+        if(largestFreeBlock==curr->size) find=true;
 
         FreeBlock* newBlock = (FreeBlock*)((char*) curr + sizeof(FreeBlock) + size);
 
@@ -33,13 +38,18 @@ void *MemoryAllocator::mem_alloc(size_t numOfBlocks)
         newBlock->next=curr->next;
         if(curr->next) curr->next->prev=newBlock;
 
+
+        if(find) findNewLargest();
     }
     else{
         // samo prevezivanje, zauzimamo jos vise memorije jer nam je ostalo <=trazene + sizeof(datablock)
         //ne menjamo curr->size zato sto ceo curr blok alociramo, pa kada ga budemo oslobadjali, oslobodicemo ceo
+        totalFreeMem=totalFreeMem-curr->size;
         if(curr->prev) curr->prev->next=curr->next;
         else freeMemHead=curr->next;
         if(curr->next) curr->next->prev=curr->prev;
+
+        if(curr->size==largestFreeBlock) findNewLargest();
     }
     curr->next=nullptr;
     curr->prev=nullptr;
@@ -52,12 +62,15 @@ int MemoryAllocator::mem_free(void *addr)
     if((char*)addr-sizeof(FreeBlock)<(char*)HEAP_START_ADDR || addr>HEAP_END_ADDR) return -2;
 
     FreeBlock* blk = (FreeBlock*) ((char*)addr-sizeof(FreeBlock));
+    totalFreeMem+=blk->size;
     blk->next=nullptr;
     blk->prev=nullptr;
     FreeBlock* curr = nullptr;
     if(!freeMemHead){
         //prvi slobodni
         freeMemHead=blk;
+        totalFreeMem=blk->size;
+        largestFreeBlock=totalFreeMem;
         return 0;
     }
     if((char*) blk < (char*) freeMemHead){
@@ -73,24 +86,29 @@ int MemoryAllocator::mem_free(void *addr)
     if(curr && (char*)curr+sizeof(FreeBlock)+curr->size==(char*)blk){
         // |curr|blk|
         curr->size+=sizeof(FreeBlock)+blk->size;
+        totalFreeMem+=sizeof(FreeBlock);
         if(curr->next && (char*)curr+sizeof(FreeBlock)+curr->size==(char*)curr->next){
             //|curr |curr->next|
             curr->size+=sizeof(FreeBlock)+curr->next->size;
+            totalFreeMem+=sizeof(FreeBlock);
             curr->next=curr->next->next;
             if(curr->next) curr->next->prev=curr;
         }
+        findNewLargest();
         return 0;
     }
 
     FreeBlock* nextBlock = curr ? curr->next : freeMemHead;
     if(nextBlock && (char*)blk+sizeof(FreeBlock)+blk->size==(char*)nextBlock){
         // |curr|used|blk|curr->next|  ILI |blk|freeMemHead|
+        totalFreeMem+=sizeof(FreeBlock);
         blk->size+=sizeof(FreeBlock)+nextBlock->size;
         blk->next=nextBlock->next;
         if(nextBlock->next) nextBlock->next->prev=blk;
         blk->prev=nextBlock->prev;
         if(nextBlock->prev) nextBlock->prev->next=blk;
         else freeMemHead=blk;
+        findNewLargest();
         return 0;
     }
     //nema potrebe za spajanjem, samo dodajemo blok;
@@ -99,5 +117,30 @@ int MemoryAllocator::mem_free(void *addr)
     if(blk->next) blk->next->prev=blk;
     if(curr) curr->next=blk;
     else freeMemHead=blk;
+
+    findNewLargest();
     return 0;
+}
+
+size_t MemoryAllocator::getFree()
+{
+
+    return totalFreeMem;
+}
+
+size_t MemoryAllocator::getLargestFreeBlock()
+{
+    return largestFreeBlock;
+}
+
+void MemoryAllocator::findNewLargest()
+{
+    largestFreeBlock=0;
+    if(!freeMemHead) return;
+    FreeBlock* curr= freeMemHead;
+    while(curr) {
+        largestFreeBlock=curr->size>largestFreeBlock?curr->size:largestFreeBlock;
+        curr=curr->next;
+    }
+
 }
