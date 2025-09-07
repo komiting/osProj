@@ -4,6 +4,7 @@
 #include "../h/riscv.hpp"
 #include "../h/MemoryAllocator.hpp"
 #include "../h/syscall_c.hpp"
+#include "../h/syscall_cpp.hpp"
 int main(){
     MemoryAllocator::initMemory();
     //treba da oznacimo nasu funkciju supervisor trap da ce biti pozivana kao prekidna

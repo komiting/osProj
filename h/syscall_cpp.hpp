@@ -1,13 +1,13 @@
 #ifndef syscall_cpp
 #define syscall_cpp
-#include "syscall_c.hpp"
+#include "./syscall_c.hpp"
 void* operator new (size_t);
 void operator delete (void*);
-/*
+
 class Thread {
 public:
     Thread (void (*body)(void*), void* arg);
-    virtual ~Thread ();
+    virtual ~Thread();
     int start ();
     static void dispatch ();
     static int sleep (time_t);
@@ -17,11 +17,14 @@ protected:
 private:
     thread_t myHandle;
     void (*body)(void*); void* arg;
+    static void runWrapper(void* thread){
+        if(thread) ((Thread*) thread)->run();
+    }
 };
 class Semaphore {
 public:
     Semaphore (unsigned init = 1);
-    virtual ~Semaphore ();
+    virtual ~Semaphore();
     int wait ();
     int signal ();
 private:
@@ -33,6 +36,7 @@ public:
 protected:
     PeriodicThread (time_t period);
     virtual void periodicActivation () {}
+    virtual void run() override;
 private:
     time_t period;
 };
@@ -41,5 +45,5 @@ public:
     static char getc ();
     static void putc (char);
 };
-*/
+
 #endif
