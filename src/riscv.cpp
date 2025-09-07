@@ -5,7 +5,8 @@
 #include "../h/riscv.hpp"
 #include "../h/tcb.hpp"
 #include "../lib/console.h"
-
+#include "../h/syscall_c.hpp"
+#include "../h/MemoryAllocator.hpp"
 void Riscv::popSppSpie() //ova fja moze biti interesantna ako nas interesuje kada ce neki procesor promeniti kontekst
 {
     //hocemo da se vratimo tamo gde ce ova funkcija biti pozvana (threadWrapper), ne mozemo samo pozvati sret jer
@@ -24,10 +25,38 @@ void Riscv::handleSupervisorTrap(){
         //+4, jer je toliko udaljena sledeca instrukcija
         uint64 volatile sepc = r_sepc()+4;
         uint64 volatile sstatus = r_sstatus();
+        uint64 volatile a0;
+        __asm__ volatile("mv %0, a0":"=r"(a0));
+        switch(a0){
+            case MEM_ALLOC:
+            {
+                size_t volatile a1;
+                __asm__ volatile("mv %0, a1":"=r"(a1));
+                uint64* ret;
+                ret=(uint64*)MemoryAllocator::mem_alloc(a1);
+                __asm__ volatile("mv a0,%0"::"r"((uint64)ret));
+                //nmg samo da ubacim vrednost u a0 jer kad zavrsim ovu funkciju meni ce sa steka procitati stari a0
+                __asm__ volatile("sd a0,80(fp)");
+                break;
+            }
+            case MEM_FREE:
+            {
+                void* volatile addr;
+                __asm__ volatile("mv %0, a1":"=r"(addr));
+                uint64 volatile flag;
+                flag=(uint64)MemoryAllocator::mem_free(addr);
+                __asm__ volatile("mv a0, %0"::"r"(flag));
+                __asm__ volatile("sd a0,80(fp)");
+                break;
+            }
+        }
+
+/*
         TCB::timeSliceCounter=0;
         TCB::dispatch();
-        w_sepc(sepc); // ne mozemo ovde da radimo +4, jer kad se promeni kontekst, moze se izabrati nit koja je asinhrono izgubila
+  */      w_sepc(sepc); // ne mozemo ovde da radimo +4, jer kad se promeni kontekst, moze se izabrati nit koja je asinhrono izgubila
         w_sstatus(sstatus);
+
     }
     if(scause==0x8000000000000001UL) // 8 -jedinica na najtezem bitu - prekid | 1 - jedinica na najnizem bitu - softver prekid
     {

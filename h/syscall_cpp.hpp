@@ -1,8 +1,9 @@
 #ifndef syscall_cpp
 #define syscall_cpp
 #include "syscall_c.hpp"
-void* ::operator new (size_t);
-void ::operator delete (void*);
+void* operator new (size_t);
+void operator delete (void*);
+/*
 class Thread {
 public:
     Thread (void (*body)(void*), void* arg);
@@ -40,5 +41,5 @@ public:
     static char getc ();
     static void putc (char);
 };
-
+*/
 #endif
