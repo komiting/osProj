@@ -17,21 +17,30 @@ public:
     void setFinished(bool flag){ TCB::finished = flag;}
 
     uint64 getTimeSlice() const {return timeSlice;}
-    using Body = void (*)();
-    static TCB *createCoroutine(Body body);
-
+    using Body = void (*)(void*);
+    static TCB *createThread(Body body, void* arg, uint64* stackSpace);
+    static TCB *createThreadBasic(Body body,void* arg);
     static void yield();
 
     static TCB* running;
 private:
-
-    TCB(Body body, uint64 timeslice) : body(body),
-                     stack(body!=nullptr? new uint64[STACK_SIZE] : nullptr),timeSlice(timeslice),
-                     context({
-                         (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
-                        body!= nullptr? (uint64) &stack[STACK_SIZE] : 0 // stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
-                    }),
-                     finished(false)
+    TCB(Body body, void* arg,uint64 timeslice) : body(body),arg(arg),
+                                       stack(body!=nullptr? new uint64[DEFAULT_STACK_SIZE] : nullptr),timeSlice(timeslice),
+                                       context({
+                                                       (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
+                                                       body!= nullptr? (uint64) &stack[DEFAULT_STACK_SIZE] : 0 // stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
+                                               }),
+                                       finished(false)
+    {
+        if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
+    }
+    TCB(Body body, uint64 timeslice,void* arg,uint64* stackSpace) : body(body),arg(arg),
+                                       stack(stackSpace),timeSlice(timeslice),
+                                       context({
+                                                       (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
+                                                       (uint64) &stack[DEFAULT_STACK_SIZE]// stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
+                                               }),
+                                       finished(false)
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
@@ -40,6 +49,7 @@ private:
         uint64 sp;
     };
     Body body;
+    void* arg;
     uint64 *stack;
     uint64 timeSlice;
     Context context;
@@ -53,8 +63,6 @@ private:
     // onda on poziva body
     static void threadWrapper();
     static uint64 timeSliceCounter;
-    static uint64 constexpr STACK_SIZE = 1024;
-    static uint64 constexpr TIME_SLICE = 2;
 };
 
 

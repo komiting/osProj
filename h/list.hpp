@@ -4,7 +4,7 @@
 
 #ifndef OS1_VEZB07_LIST_HPP
 #define OS1_VEZB07_LIST_HPP
-
+#include "./MemoryAllocator.hpp"
 template<typename T>
 class List
 {

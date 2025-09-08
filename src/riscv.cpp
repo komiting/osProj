@@ -5,14 +5,15 @@
 #include "../h/riscv.hpp"
 #include "../h/tcb.hpp"
 #include "../lib/console.h"
-#include "../h/syscall_c.hpp"
+#include "../h/syscall_c.h"
 #include "../h/MemoryAllocator.hpp"
-#include "../h/print.hpp"
+#include "../test/printing.hpp"
 void Riscv::popSppSpie() //ova fja moze biti interesantna ako nas interesuje kada ce neki procesor promeniti kontekst
 {
     //hocemo da se vratimo tamo gde ce ova funkcija biti pozvana (threadWrapper), ne mozemo samo pozvati sret jer
     //jer bi nas sepc vratio kod linije 38, gde je stara nit izgubila pristup, sto ne zelimo
     //jedini nacin upisemo vrednost u sret tamo gde je funkcija bila pozvana, jeste da se funkcija POZOVE, a NE INLINE!
+    __asm__ volatile("csrc sstatus, %0" ::"r"(SSTATUS_SPP));
     __asm__ volatile ("csrw sepc, ra");
     __asm__ volatile ("sret");
 }
@@ -27,12 +28,12 @@ void Riscv::handleSupervisorTrap(){
         uint64 volatile sepc = r_sepc()+4;
         uint64 volatile sstatus = r_sstatus();
         uint64 volatile a0;
-        __asm__ volatile("mv %0, a0":"=r"(a0));
+        __asm__ volatile("ld %0, 80(fp)":"=r"(a0));
         switch(a0){
             case MEM_ALLOC:
             {
                 size_t volatile a1;
-                __asm__ volatile("mv %0, a1":"=r"(a1));
+                __asm__ volatile("ld %0, 88(fp)":"=r"(a1));
                 uint64* ret;
                 ret=(uint64*)MemoryAllocator::mem_alloc(a1);
                 __asm__ volatile("mv a0,%0"::"r"((uint64)ret));
@@ -43,7 +44,7 @@ void Riscv::handleSupervisorTrap(){
             case MEM_FREE:
             {
                 void* volatile addr;
-                __asm__ volatile("mv %0, a1":"=r"(addr));
+                __asm__ volatile("ld %0, 88(fp)":"=r"(addr));
                 uint64 volatile flag;
                 flag=(uint64)MemoryAllocator::mem_free(addr);
                 __asm__ volatile("mv a0, %0"::"r"(flag));
@@ -68,17 +69,46 @@ void Riscv::handleSupervisorTrap(){
             }
             case THREAD_CREATE:
             {
+                thread_t* volatile handle;
+                void* start_routine;
+                void* volatile arg;
+                uint64* volatile addr;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(handle));
+                __asm__ volatile("ld %0, 8*12(fp)":"=r"(start_routine));
+                __asm__ volatile("ld %0, 8*13(fp)":"=r"(arg));
+                __asm__ volatile("ld %0, 8*14(fp)":"=r"(addr));
+                void(*body)(void*)=(void (*)(void*))start_routine;
 
+                TCB *thread =TCB::createThread(body,arg,addr);
+                *(TCB**) handle= thread;
+                if(thread){
+                    __asm__ volatile("mv a0, %0"::"r"(0));
+                    __asm__ volatile("sd a0,80(fp)");
+                }
+                else{
+                    __asm__ volatile("mv a0, %0"::"r"(-1));
+                    __asm__ volatile("sd a0,80(fp)");
+                }
                 break;
             }
             case THREAD_DISPATCH:
             {
-
+                TCB::timeSliceCounter=0;
+                TCB::dispatch();
                 break;
             }
             case THREAD_EXIT:
             {
+                uint64 ret=0;
+                if(!TCB::running->isFinished()){
 
+                    TCB::running->setFinished(true);
+                    TCB::timeSliceCounter=0;
+                    TCB::dispatch();
+                }
+                else ret=-1;
+                __asm__ volatile("mv a0, %0"::"r"(ret));
+                __asm__ volatile("sd a0,80(fp)");
                 break;
             }
             case SEM_OPEN:
@@ -108,12 +138,16 @@ void Riscv::handleSupervisorTrap(){
             }
             case GETC:
             {
-
+                char ret=__getc();
+                __asm__ volatile("mv a0, %0"::"r"(ret));
+                __asm__ volatile("sd a0,80(fp)");
                 break;
             }
             case PUTC:
             {
-
+                char volatile c;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(c));
+                __putc(c);
                 break;
             }
             default:
@@ -130,7 +164,7 @@ void Riscv::handleSupervisorTrap(){
         }
 
 /*
-        TCB::timeSliceCounter=0;
+
         TCB::dispatch();
   */      w_sepc(sepc); // ne mozemo ovde da radimo +4, jer kad se promeni kontekst, moze se izabrati nit koja je asinhrono izgubila
         w_sstatus(sstatus);

@@ -4,6 +4,7 @@
 
 #include "../h/tcb.hpp"
 #include "../h/riscv.hpp"
+#include "../h/syscall_c.h"
 //extern "C" void pushRegisters();//extern C mora da bi se izbegao name mangling, bez ovoga kako jeste
 
 TCB* TCB::running = nullptr;
@@ -14,12 +15,13 @@ void TCB::yield()
 {
     //sada hocemo da se svi prekidi izvrsavaju preko funkcije koju smo ispisali
     //hocemo da sinhrono udjemo u tu prekidnu funkciju - ulazak u prekidnu rutinu zbog zvrsavajna neke instrukcije - exception
+    __asm__ volatile("mv a0, %0"::"r"(THREAD_DISPATCH));
     __asm__ volatile("ecall");
 }
 
-TCB *TCB::createCoroutine(TCB::Body body)
+TCB *TCB::createThread(Body body, void* arg, uint64* stackSpace)
 {
-    return new TCB(body, TIME_SLICE);
+    return new TCB(body, DEFAULT_TIME_SLICE,arg,stackSpace);
 }
 
 void TCB::dispatch()
@@ -41,7 +43,12 @@ void TCB::threadWrapper(){
     // i da dozvolimo prekid opet - SPIE
     //za prvi poziv niti ovde ce se izaci iz prekidne rutine, samim tim moramo obezbediti da se ovde prekid zavrsi
     Riscv::popSppSpie();
-    running->body();
+    running->body(running->arg);
     running->setFinished(true);
     TCB::yield();
+}
+
+TCB *TCB::createThreadBasic(TCB::Body body, void *arg)
+{
+    return new TCB(body,arg,DEFAULT_TIME_SLICE);
 }
