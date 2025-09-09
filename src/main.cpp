@@ -1,6 +1,7 @@
 #include "../h/tcb.hpp"
 #include "../test/printing.hpp"
 #include "../h/riscv.hpp"
+#include "../h/Semaphore.hpp"
 #include "../h/MemoryAllocator.hpp"
 #include "../h/syscall_c.h"
 #include "../h/syscall_cpp.hpp"

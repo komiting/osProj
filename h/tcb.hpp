@@ -16,31 +16,40 @@ public:
     bool isFinished(){return finished;}
     void setFinished(bool flag){ TCB::finished = flag;}
 
+    bool isBlocked(){return blocked;}
+    void setBlocked(bool flag){ TCB::blocked = flag;}
+
+    bool isClosed(){return closed;}
+    void setClosed(bool flag){ TCB::closed = flag;}
+
     uint64 getTimeSlice() const {return timeSlice;}
     using Body = void (*)(void*);
     static TCB *createThread(Body body, void* arg, uint64* stackSpace);
     static TCB *createThreadBasic(Body body,void* arg);
-    static void yield();
 
     static TCB* running;
 private:
     TCB(Body body, void* arg,uint64 timeslice) : body(body),arg(arg),
-                                       stack(body!=nullptr? new uint64[DEFAULT_STACK_SIZE] : nullptr),timeSlice(timeslice),
+                                       stack(body!=nullptr? (char*)(new char*[DEFAULT_STACK_SIZE]): nullptr),timeSlice(timeslice),
                                        context({
                                                        (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
                                                        body!= nullptr? (uint64) &stack[DEFAULT_STACK_SIZE] : 0 // stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
                                                }),
-                                       finished(false)
+                                       finished(false),
+                                       blocked(false),
+                                       closed(false)
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
     TCB(Body body, uint64 timeslice,void* arg,uint64* stackSpace) : body(body),arg(arg),
-                                       stack(stackSpace),timeSlice(timeslice),
+                                       stack((char*)stackSpace),timeSlice(timeslice),
                                        context({
                                                        (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
                                                        (uint64) &stack[DEFAULT_STACK_SIZE]// stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
                                                }),
-                                       finished(false)
+                                       finished(false),
+                                       blocked(false),
+                                       closed(false)
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
@@ -50,11 +59,14 @@ private:
     };
     Body body;
     void* arg;
-    uint64 *stack;
+    char *stack;
     uint64 timeSlice;
     Context context;
     bool finished;
+    bool blocked;
+    bool closed;
     friend class Riscv;
+    friend class mySemaphore;
     //trenutne ra i sp stavljamo u oldcontext, a ra i sp novog konteksta stavljao u registre
     static void contextSwitch(Context* oldContext, Context* runningContext);
     static void dispatch();

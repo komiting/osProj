@@ -18,19 +18,21 @@ private:
     };
 
     Elem *head, *tail;
-
+    int size;
 public:
-    List() : head(0), tail(0) {}
+    List() : head(0), tail(0) ,size(0){}
 
     List(const List<T> &) = delete;
 
     List<T> &operator=(const List<T> &) = delete;
 
+    int getSize() {return size;}
     void addFirst(T *data)
     {
         Elem *elem = new Elem(data, head);
         head = elem;
         if (!tail) { tail = head; }
+        size++;
     }
 
     void addLast(T *data)
@@ -44,6 +46,7 @@ public:
         {
             head = tail = elem;
         }
+        size++;
     }
 
     T *removeFirst()
@@ -56,6 +59,7 @@ public:
 
         T *ret = elem->data;
         delete elem;
+        size--;
         return ret;
     }
 
@@ -82,6 +86,7 @@ public:
 
         T *ret = elem->data;
         delete elem;
+        size--;
         return ret;
     }
 

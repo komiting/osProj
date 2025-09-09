@@ -6,6 +6,7 @@
 #include "../h/tcb.hpp"
 #include "../lib/console.h"
 #include "../h/syscall_c.h"
+#include "../h/Semaphore.hpp"
 #include "../h/MemoryAllocator.hpp"
 #include "../test/printing.hpp"
 void Riscv::popSppSpie() //ova fja moze biti interesantna ako nas interesuje kada ce neki procesor promeniti kontekst
@@ -33,7 +34,7 @@ void Riscv::handleSupervisorTrap(){
             case MEM_ALLOC:
             {
                 size_t volatile a1;
-                __asm__ volatile("ld %0, 88(fp)":"=r"(a1));
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(a1));
                 uint64* ret;
                 ret=(uint64*)MemoryAllocator::mem_alloc(a1);
                 __asm__ volatile("mv a0,%0"::"r"((uint64)ret));
@@ -44,7 +45,7 @@ void Riscv::handleSupervisorTrap(){
             case MEM_FREE:
             {
                 void* volatile addr;
-                __asm__ volatile("ld %0, 88(fp)":"=r"(addr));
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(addr));
                 uint64 volatile flag;
                 flag=(uint64)MemoryAllocator::mem_free(addr);
                 __asm__ volatile("mv a0, %0"::"r"(flag));
@@ -113,22 +114,69 @@ void Riscv::handleSupervisorTrap(){
             }
             case SEM_OPEN:
             {
+                int ret;
 
+                int volatile init;
+                sem_t* volatile handle;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(handle));
+                __asm__ volatile("ld %0, 8*12(fp)":"=r"(init));
+                mySemaphore *sem =mySemaphore::createSemaphore(init);
+
+                if(sem){
+                    *(mySemaphore**) handle= sem;
+                    ret=0;
+                }
+                else ret=-1;
+
+                __asm__ volatile("mv a0, %0"::"r"(ret));
+                __asm__ volatile("sd a0,80(fp)");
                 break;
             }
             case SEM_CLOSE:
             {
-
+                mySemaphore* volatile handle;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(handle));
+                if(!handle){
+                    __asm__ volatile("mv a0, %0"::"r"(-1));
+                    __asm__ volatile("sd a0,80(fp)");
+                    break;
+                }
+                int ret=handle->close();
+                MemoryAllocator::mem_free(handle);
+                __asm__ volatile("mv a0, %0"::"r"(ret));
+                __asm__ volatile("sd a0,80(fp)");
                 break;
             }
             case SEM_WAIT:
             {
+                mySemaphore* volatile handle;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(handle));
+                if(!handle){
+                    __asm__ volatile("mv a0, %0"::"r"(-1));
+                    __asm__ volatile("sd a0,80(fp)");
+                    break;
+                }
+                int ret=handle->wait();
 
+                __asm__ volatile("mv a0, %0"::"r"(ret));
+                __asm__ volatile("sd a0,80(fp)");
+                break;
                 break;
             }
             case SEM_SIGNAL:
             {
+                mySemaphore* volatile handle;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(handle));
+                if(!handle){
+                    __asm__ volatile("mv a0, %0"::"r"(-1));
+                    __asm__ volatile("sd a0,80(fp)");
+                    break;
+                }
+                int ret=handle->signal();
 
+                __asm__ volatile("mv a0, %0"::"r"(ret));
+                __asm__ volatile("sd a0,80(fp)");
+                break;
                 break;
             }
             case TIME_SLEEP:
@@ -170,7 +218,7 @@ void Riscv::handleSupervisorTrap(){
         w_sstatus(sstatus);
 
     }
-    if(scause==0x8000000000000001UL) // 8 -jedinica na najtezem bitu - prekid | 1 - jedinica na najnizem bitu - softver prekid
+    else if(scause==0x8000000000000001UL) // 8 -jedinica na najtezem bitu - prekid | 1 - jedinica na najnizem bitu - softver prekid
     {
         TCB::timeSliceCounter++;
         if(TCB::timeSliceCounter >= TCB::running->getTimeSlice()){
@@ -196,5 +244,6 @@ void Riscv::handleSupervisorTrap(){
         //sepc- gde se desilo
         // stval - dodatno opise cause
 
+        while(true);
     }
 }

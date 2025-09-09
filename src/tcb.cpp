@@ -11,14 +11,6 @@ TCB* TCB::running = nullptr;
 
 uint64 TCB::timeSliceCounter=0;
 
-void TCB::yield()
-{
-    //sada hocemo da se svi prekidi izvrsavaju preko funkcije koju smo ispisali
-    //hocemo da sinhrono udjemo u tu prekidnu funkciju - ulazak u prekidnu rutinu zbog zvrsavajna neke instrukcije - exception
-    __asm__ volatile("mv a0, %0"::"r"(THREAD_DISPATCH));
-    __asm__ volatile("ecall");
-}
-
 TCB *TCB::createThread(Body body, void* arg, uint64* stackSpace)
 {
     return new TCB(body, DEFAULT_TIME_SLICE,arg,stackSpace);
@@ -27,14 +19,18 @@ TCB *TCB::createThread(Body body, void* arg, uint64* stackSpace)
 void TCB::dispatch()
 {
     TCB* old = running;
-    if(!old->isFinished()) Scheduler::put(old);
+    if(!old->isFinished() && !old->isBlocked()) Scheduler::put(old);
     running=Scheduler::get();
 
         //za novonastale niti, tj niti koje su stavljen u scheduler a nikad ranije nisu koriscne
         //njihova povratna adresa zbog nacina na koji smo ih pravili ce biti postavljena
         // na threadWrapper funkciju, odakle ce da pokrene njen tok
     TCB::contextSwitch(&old->context, &running->context);
+    if(old->isFinished()) {
+        MemoryAllocator::mem_free(old->stack);
+        MemoryAllocator::mem_free(old);
 
+    }
 }
 
 void TCB::threadWrapper(){
@@ -44,8 +40,7 @@ void TCB::threadWrapper(){
     //za prvi poziv niti ovde ce se izaci iz prekidne rutine, samim tim moramo obezbediti da se ovde prekid zavrsi
     Riscv::popSppSpie();
     running->body(running->arg);
-    running->setFinished(true);
-    TCB::yield();
+    thread_exit();
 }
 
 TCB *TCB::createThreadBasic(TCB::Body body, void *arg)
