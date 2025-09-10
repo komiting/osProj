@@ -1,7 +1,7 @@
 //
 // Created by marko on 20.4.22..
 //
-
+#include "../lib/mem.h"
 #include "../h/riscv.hpp"
 #include "../h/tcb.hpp"
 #include "../lib/console.h"
@@ -156,11 +156,10 @@ void Riscv::handleSupervisorTrap(){
                     __asm__ volatile("sd a0,80(fp)");
                     break;
                 }
-                int ret=handle->wait();
-
-                __asm__ volatile("mv a0, %0"::"r"(ret));
+                __asm__ volatile("mv a0, %0"::"r"(0));
                 __asm__ volatile("sd a0,80(fp)");
-                break;
+                int ret=handle->wait();
+                __asm__ volatile("mv a0, %0"::"r"(ret));
                 break;
             }
             case SEM_SIGNAL:
@@ -177,11 +176,17 @@ void Riscv::handleSupervisorTrap(){
                 __asm__ volatile("mv a0, %0"::"r"(ret));
                 __asm__ volatile("sd a0,80(fp)");
                 break;
-                break;
             }
             case TIME_SLEEP:
-            {
+            {//kad vratiti -1? - mozda ako prekoraci max uint64?
+                uint64 time;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(time));
 
+                TCB::toSleep(time+TCB::timeCur);
+                TCB::timeSliceCounter=0;
+                __asm__ volatile("mv a0, %0"::"r"(0));
+                __asm__ volatile("sd a0,80(fp)");
+                TCB::dispatch();
                 break;
             }
             case GETC:
@@ -200,7 +205,7 @@ void Riscv::handleSupervisorTrap(){
             }
             default:
             {
-                printString("Unknown error, system is shitting down\n");
+                //printString("Unknown error, system is shitting down\n");
                 uint32 val = 0x5555;
                 uint64 addr = 0x100000;
                 __asm__ volatile("sw %[val], 0(%[addr])" : : [val] "r"(val), [addr] "r"(addr));
@@ -218,20 +223,32 @@ void Riscv::handleSupervisorTrap(){
         w_sstatus(sstatus);
 
     }
-    else if(scause==0x8000000000000001UL) // 8 -jedinica na najtezem bitu - prekid | 1 - jedinica na najnizem bitu - softver prekid
+    else if(scause==0x8000000000000001UL) // 8 -jedinica na najtezem bitu - prekid | 1 - jedinica na najnizem bitu - softver/tajmer prekid
     {
+
+        uint64 volatile sepc = r_sepc();
+        uint64 volatile sstatus = r_sstatus();
+        mc_sip(SIP_SSIP);//obradio sam pending software interrupt, ne mora da se vraca ovde
+
         TCB::timeSliceCounter++;
+        TCB::timeCur++;
+        while(Scheduler::getWakeTime() && TCB::timeCur>=Scheduler::getWakeTime()){
+            TCB* rising=Scheduler::getSorted();
+            rising->sleep=false;
+            Scheduler::put(rising);
+        }
+
+
         if(TCB::timeSliceCounter >= TCB::running->getTimeSlice()){
+
             //odavde nije povratna adresa u ra nego je u sepc, pa moramo to eksplicitno cuvati ovde, jer se u
             //dispatchu ne cuva
-            uint64 volatile sepc = r_sepc();
-            uint64 volatile sstatus = r_sstatus();
             TCB::timeSliceCounter=0;
             TCB::dispatch();
-            w_sepc(sepc);
-            w_sstatus(sstatus);
         }
-        mc_sip(SIP_SSIP);
+
+        w_sepc(sepc);
+        w_sstatus(sstatus);
     }
     else if (scause==0x8000000000000009UL){
         //console interrupt
@@ -244,6 +261,8 @@ void Riscv::handleSupervisorTrap(){
         //sepc- gde se desilo
         // stval - dodatno opise cause
 
+        uint64 sepc=r_sepc();
+        w_sepc(sepc);
         while(true);
     }
 }

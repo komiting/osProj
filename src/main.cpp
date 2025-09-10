@@ -11,6 +11,9 @@ extern void userMain();
 void userMainWrapper(void* arg){
     userMain();
 }
+void idle(void* arg){
+    while(true) thread_dispatch();
+}
 int main(){
     MemoryAllocator::initMemory();
     TCB *threads[5];
@@ -21,12 +24,13 @@ int main(){
     threads[0]=TCB::createThreadBasic(nullptr,nullptr);
     TCB::running = threads[0];
 
-    TCB* userThread=TCB::createThreadBasic(&userMainWrapper,nullptr);
-    while(!userThread->isFinished()) {
-        thread_dispatch();
-    }
+    Thread* idleThread = new Thread(idle,nullptr);
+    Semaphore* sem = new Semaphore(0);
+    idleThread->start();
 
-    printString("Vratio sam se u main\n");
+    Thread* userThread = new Thread(userMainWrapper, sem);
+    userThread->start();
 
+    sem->wait();
     return 0;
 }

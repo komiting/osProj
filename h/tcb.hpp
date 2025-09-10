@@ -22,9 +22,12 @@ public:
     bool isClosed(){return closed;}
     void setClosed(bool flag){ TCB::closed = flag;}
 
+    bool isSlept(){return sleep;}
+    void setSleep(bool flag){ TCB::sleep = flag;}
+
     uint64 getTimeSlice() const {return timeSlice;}
     using Body = void (*)(void*);
-    static TCB *createThread(Body body, void* arg, uint64* stackSpace);
+    static TCB *createThread(Body body, void* arg, void* stackSpace);
     static TCB *createThreadBasic(Body body,void* arg);
 
     static TCB* running;
@@ -37,19 +40,21 @@ private:
                                                }),
                                        finished(false),
                                        blocked(false),
-                                       closed(false)
+                                       closed(false),
+                                       sleep(false)
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
-    TCB(Body body, uint64 timeslice,void* arg,uint64* stackSpace) : body(body),arg(arg),
+    TCB(Body body, uint64 timeslice,void* arg,void* stackSpace) : body(body),arg(arg),
                                        stack((char*)stackSpace),timeSlice(timeslice),
                                        context({
                                                        (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
-                                                       (uint64) &stack[DEFAULT_STACK_SIZE]// stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
+                                                       (uint64) & ((char*)stack)[DEFAULT_STACK_SIZE]// stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
                                                }),
                                        finished(false),
                                        blocked(false),
-                                       closed(false)
+                                       closed(false),
+                                       sleep(false)
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
@@ -65,16 +70,18 @@ private:
     bool finished;
     bool blocked;
     bool closed;
+    bool sleep;
     friend class Riscv;
     friend class mySemaphore;
     //trenutne ra i sp stavljamo u oldcontext, a ra i sp novog konteksta stavljao u registre
     static void contextSwitch(Context* oldContext, Context* runningContext);
     static void dispatch();
-
+    static void toSleep(uint64 sleep);
     //posto u workeru ne obavestavamo da smo zavrsili, da bi pustili nit treba nam wrapper, koji ce se izvrasvati prvi, i
     // onda on poziva body
     static void threadWrapper();
     static uint64 timeSliceCounter;
+    static uint64 timeCur;
 };
 
 

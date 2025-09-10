@@ -13,8 +13,9 @@ private:
     {
         T *data;
         Elem *next;
-
-        Elem(T *data, Elem *next) : data(data), next(next) {}
+        uint64 wakeUp;
+        Elem(T *data, Elem *next) : data(data), next(next),wakeUp(-1) {}
+        Elem(T *data, Elem *next,uint64 wakeup) : data(data), next(next),wakeUp(wakeup) {}
     };
 
     Elem *head, *tail;
@@ -29,15 +30,49 @@ public:
     int getSize() {return size;}
     void addFirst(T *data)
     {
-        Elem *elem = new Elem(data, head);
+        size_t numOfBlocks = ((sizeof(Elem) + MEM_BLOCK_SIZE - 1)) / MEM_BLOCK_SIZE;
+        Elem* elem = (Elem*)MemoryAllocator::mem_alloc(numOfBlocks);
+        elem->data = (void*)data;
+        elem->next = nullptr;
         head = elem;
         if (!tail) { tail = head; }
         size++;
     }
 
+    void addSorted(T *data,uint64 wakeUp){
+        Elem* curr = head;
+        size_t numOfBlocks = ((sizeof(Elem) + MEM_BLOCK_SIZE - 1)) / MEM_BLOCK_SIZE;
+        Elem* elem = (Elem*)MemoryAllocator::mem_alloc(numOfBlocks);
+        elem->data = (T*)data;
+        elem->next = nullptr;
+        elem->wakeUp=wakeUp;
+        if(!curr){
+            head=tail=elem;
+            size++;
+            return;
+        }
+        else if(head->wakeUp>wakeUp){
+            elem->next=head;
+            head=elem;
+            size++;
+            return;
+        }
+        Elem* prev=curr;
+        while(curr && curr->wakeUp<=wakeUp) {
+            prev=curr;
+            curr=curr->next;
+        }
+        elem->next=curr;
+        prev->next=elem;
+        if(!curr) tail=elem;
+        size++;
+    }
     void addLast(T *data)
     {
-        Elem *elem = new Elem(data, 0);
+        size_t numOfBlocks = ((sizeof(Elem) + MEM_BLOCK_SIZE - 1)) / MEM_BLOCK_SIZE;
+        Elem* elem = (Elem*)MemoryAllocator::mem_alloc(numOfBlocks);
+        elem->data = (T*)data;
+        elem->next = nullptr;
         if (tail)
         {
             tail->next = elem;
@@ -58,7 +93,7 @@ public:
         if (!head) { tail = 0; }
 
         T *ret = elem->data;
-        delete elem;
+        MemoryAllocator::mem_free(elem);
         size--;
         return ret;
     }
@@ -67,6 +102,11 @@ public:
     {
         if (!head) { return 0; }
         return head->data;
+    }
+
+    uint64 peekFirstTime(){
+        if(!head) return 0;
+        return head->wakeUp;
     }
 
     T *removeLast()
@@ -85,7 +125,7 @@ public:
         tail = prev;
 
         T *ret = elem->data;
-        delete elem;
+        MemoryAllocator::mem_free(elem);
         size--;
         return ret;
     }
