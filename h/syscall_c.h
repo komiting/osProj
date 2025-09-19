@@ -1,6 +1,6 @@
 #ifndef syscall_c
 #define syscall_c
-#include "../lib/mem.h"
+#include "../lib/hw.h"
 
 constexpr uint64 MEM_ALLOC = 0x01;
 constexpr uint64 MEM_FREE= 0x02;
