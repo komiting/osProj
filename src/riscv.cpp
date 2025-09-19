@@ -1,20 +1,26 @@
 //
 // Created by marko on 20.4.22..
 //
-#include "../lib/mem.h"
+#include "../h/MemoryAllocator.hpp"
 #include "../h/riscv.hpp"
 #include "../h/tcb.hpp"
-#include "../lib/console.h"
 #include "../h/syscall_c.h"
 #include "../h/Semaphore.hpp"
-#include "../h/MemoryAllocator.hpp"
-#include "../test/printing.hpp"
+#include "../h/myConsole.hpp"
 void Riscv::popSppSpie() //ova fja moze biti interesantna ako nas interesuje kada ce neki procesor promeniti kontekst
 {
     //hocemo da se vratimo tamo gde ce ova funkcija biti pozvana (threadWrapper), ne mozemo samo pozvati sret jer
     //jer bi nas sepc vratio kod linije 38, gde je stara nit izgubila pristup, sto ne zelimo
     //jedini nacin upisemo vrednost u sret tamo gde je funkcija bila pozvana, jeste da se funkcija POZOVE, a NE INLINE!
-    __asm__ volatile("csrc sstatus, %0" ::"r"(SSTATUS_SPP));
+    if (TCB::running->body== nullptr )
+        ms_sstatus(SSTATUS_SPP);
+    else mc_sstatus(SSTATUS_SPP);
+    __asm__ volatile ("csrw sepc, ra");
+    __asm__ volatile ("sret");
+}
+void Riscv::kernelWrapper()
+{
+     ms_sstatus(SSTATUS_SPP);
     __asm__ volatile ("csrw sepc, ra");
     __asm__ volatile ("sret");
 }
@@ -191,7 +197,7 @@ void Riscv::handleSupervisorTrap(){
             }
             case GETC:
             {
-                char ret=__getc();
+                char ret=myConsole::getInput();
                 __asm__ volatile("mv a0, %0"::"r"(ret));
                 __asm__ volatile("sd a0,80(fp)");
                 break;
@@ -200,7 +206,7 @@ void Riscv::handleSupervisorTrap(){
             {
                 char volatile c;
                 __asm__ volatile("ld %0, 8*11(fp)":"=r"(c));
-                __putc(c);
+                myConsole::setOutput(c);
                 break;
             }
             default:
@@ -252,8 +258,7 @@ void Riscv::handleSupervisorTrap(){
     }
     else if (scause==0x8000000000000009UL){
         //console interrupt
-
-        console_handler();
+        myConsole::console_handler();
     }
     else{
         //unexpected inerrupt

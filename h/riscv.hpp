@@ -16,6 +16,7 @@ public:
     //nama treba bukv poziv masinske instrukcije gde ce biti zapisan ra
     static void popSppSpie();
 
+    static void kernelWrapper();
     //stavljamo ovde svo cimanje sa registrima
     // push x3..x31 registers onto stack
     static void pushRegisters();

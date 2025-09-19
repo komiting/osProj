@@ -17,6 +17,10 @@ TCB *TCB::createThread(Body body, void* arg, void* stackSpace)
     return new TCB(body, DEFAULT_TIME_SLICE,arg,stackSpace);
 }
 
+TCB *TCB::createThreadKernel(Body body, void* arg, void* stackSpace)
+{
+    return new TCB(body, DEFAULT_TIME_SLICE,arg,stackSpace,true);
+}
 void TCB::dispatch()
 {
     TCB* old = running;
@@ -43,6 +47,11 @@ void TCB::threadWrapper(){
     thread_exit();//user mode
 }
 
+void TCB::kernelWrapper(){
+    Riscv::kernelWrapper();
+    running->body(running->arg);//kernel mode
+    thread_exit();
+}
 TCB *TCB::createThreadBasic(TCB::Body body, void *arg)
 {
     return new TCB(body,arg,DEFAULT_TIME_SLICE);
@@ -53,3 +62,4 @@ void TCB::toSleep(uint64 wakeTime)
     running->setSleep(true);
     Scheduler::putSorted(running,wakeTime);
 }
+
