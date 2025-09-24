@@ -71,7 +71,12 @@ void thread_dispatch(){
     __asm__ volatile("mv a0, %0"::"r"(THREAD_DISPATCH));
     __asm__ volatile("ecall");
 }
-
+void thread_join(thread_t* handle, time_t tajm){
+    __asm__ volatile("mv a2, %0"::"r"(handle));
+    __asm__ volatile("mv a1, %0"::"r"(tajm));
+    __asm__ volatile("mv a0, %0" :: "r"(THREAD_JOIN));
+    __asm__ volatile("ecall");
+}
 void set_max_threads(int num_of_threads, int max_time, int interval_time){
     __asm__ volatile("mv a3, %0"::"r"(interval_time));
     __asm__ volatile("mv a2, %0"::"r"(max_time));

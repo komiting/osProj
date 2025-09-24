@@ -9,6 +9,7 @@ constexpr uint64 MEM_LARGEST_BLOCK_SYSCALL= 0x04;
 constexpr uint64 THREAD_CREATE = 0x11;
 constexpr uint64 THREAD_EXIT = 0x12;
 constexpr uint64 THREAD_DISPATCH = 0x13;
+constexpr uint64 THREAD_JOIN = 0x70;
 constexpr uint64 THREAD_SET_MAX = 0x69;
 constexpr uint64 THREAD_BLOCK = 0x68;
 constexpr uint64 SEM_OPEN = 0x21;
@@ -30,6 +31,7 @@ size_t mem_get_largest_free_block();
 class _thread;
 typedef _thread* thread_t;
 
+typedef unsigned long time_t;
 int thread_create (
         thread_t* handle,
         void(*start_routine)(void*),
@@ -37,6 +39,7 @@ int thread_create (
 );
 int thread_exit();
 void thread_dispatch();
+void thread_join(thread_t* handle, time_t tajm);
 void set_max_threads(int,int,int);
 int block_thread(        thread_t* handle,
                           void(*start_routine)(void*),
@@ -52,7 +55,6 @@ int sem_close(sem_t handle);
 int sem_wait(sem_t id);
 int sem_signal(sem_t id);
 
-typedef unsigned long time_t;
 int time_sleep(time_t);
 
 const int EOF = -1;

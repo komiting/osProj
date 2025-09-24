@@ -10,6 +10,7 @@ public:
     virtual ~Thread();
     int start ();
     static void dispatch ();
+    void join(time_t);
     static int sleep (time_t);
     static void SetMaximumThreads(int num_of_threads, int max_time, int interval_time);
 protected:

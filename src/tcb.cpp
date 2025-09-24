@@ -28,10 +28,17 @@ TCB *TCB::createThreadKernel(Body body, void* arg, void* stackSpace)
 void TCB::dispatch()
 {
     TCB* old = running;
-    if(!old->isFinished() && !old->isBlocked() && !old->isSlept()) Scheduler::put(old);
+    if(!old->isFinished() && !old->isBlocked() && !old->isSlept() && !old->blockedWait) Scheduler::put(old);
     else if(old->isFinished()) {
-        //MemoryAllocator::mem_free(old->stack);
-        //MemoryAllocator::mem_free(old);
+        while(old->waitingThreads.peekFirst()){
+            TCB* thread = old->waitingThreads.removeFirst();
+            thread->sleep=false;
+            if(thread->blockedWait)
+            {
+                Scheduler::put(thread);
+                thread->blockedWait = false;
+            }
+        }
     }
     running=Scheduler::get();
 
@@ -70,6 +77,13 @@ void TCB::toSleep(uint64 wakeTime)
 TCB *TCB::createThreadBlocked(TCB::Body body, void *arg, void *stackSpace)
 {
     return new TCB(body, DEFAULT_TIME_SLICE,arg,stackSpace,1);
+
+}
+
+void TCB::insertWaiter(TCB *thread)
+{
+    thread->blockedWait=true;
+    this->waitingThreads.addLast(thread);
 
 }
 

@@ -49,6 +49,11 @@ void Thread::SetMaximumThreads(int num_of_threads, int max_time, int interval_ti
     set_max_threads(num_of_threads,max_time,interval_time);
 }
 
+void Thread::join(time_t tajm)
+{
+    thread_join(&myHandle,tajm);
+}
+
 
 Semaphore::Semaphore(unsigned int init) :myHandle(nullptr){
     sem_open(&myHandle,init);

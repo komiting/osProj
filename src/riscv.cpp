@@ -106,6 +106,23 @@ void Riscv::handleSupervisorTrap(){
                 TCB::dispatch();
                 break;
             }
+            case THREAD_JOIN:
+            {
+                thread_t* handle;
+                uint64 time;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(time));
+                __asm__ volatile("ld %0, 8*12(fp)":"=r"(handle));
+                TCB* leader;
+                leader = *(TCB**) handle;
+                leader->insertWaiter(TCB::running);
+                if(time)
+                {
+                    TCB::toSleep(time + TCB::timeCur);
+                    TCB::timeSliceCounter = 0;
+                }
+                TCB::dispatch();
+                break;
+            }
             case THREAD_EXIT:
             {
                 uint64 ret=0;
@@ -297,8 +314,11 @@ void Riscv::handleSupervisorTrap(){
         }
         while(Scheduler::getWakeTime() && TCB::timeCur>=Scheduler::getWakeTime()){
             TCB* rising=Scheduler::getSorted();
-            rising->sleep=false;
-            Scheduler::put(rising);
+            rising->blockedWait=false;
+            if(rising->sleep){
+                Scheduler::put(rising);
+                rising->sleep=false;
+            }
         }
 
 

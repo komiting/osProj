@@ -33,8 +33,10 @@ public:
     static TCB *createThreadKernel(Body body,void* arg, void* stackSpace);
     static TCB *createThreadBlocked(Body body,void* arg, void* stackSpace);
 
-
     static TCB* running;
+
+    void insertWaiter(TCB* thread);
+
 private:
     TCB(Body body, void* arg,uint64 timeslice) : body(body),arg(arg),
                                        stack(body!=nullptr? (char*)(new char*[DEFAULT_STACK_SIZE]): nullptr),timeSlice(timeslice),
@@ -45,7 +47,8 @@ private:
                                        finished(false),
                                        blocked(false),
                                        closed(false),
-                                       sleep(false)
+                                       sleep(false),
+                                       blockedWait(false)
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
@@ -58,11 +61,12 @@ private:
                                        finished(false),
                                        blocked(false),
                                        closed(false),
-                                       sleep(false)
+                                       sleep(false),
+                                       blockedWait(false)
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
-    TCB(Body body, uint64 timeslice,void* arg,void* stackSpace,int blocked) : body(body),arg(arg),
+    TCB(Body body, uint64 timeslice,void* arg,void* stackSpace,int blocked1) : body(body),arg(arg),
                                                                                     stack((char*)stackSpace),timeSlice(timeslice),
                                                                                     context({
                                                                                                     (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
@@ -71,9 +75,10 @@ private:
                                                                                     finished(false),
                                                                                     blocked(false),
                                                                                     closed(false),
-                                                                                    sleep(false)
+                                                                                    sleep(false),
+                                                                                    blockedWait(false)
     {
-        if(blocked) blockedQ.addLast(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
+        if(blocked1) blockedQ.addLast(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
     struct Context{
         uint64 ra;
@@ -88,6 +93,7 @@ private:
     bool blocked;
     bool closed;
     bool sleep;
+    bool blockedWait;
     friend class Riscv;
     friend class mySemaphore;
     //trenutne ra i sp stavljamo u oldcontext, a ra i sp novog konteksta stavljao u registre
@@ -104,6 +110,7 @@ private:
     static int timeInterval;
     static int timeIntervalCounter;
     static  List<TCB> blockedQ;
+    List<TCB> waitingThreads;
 };
 
 
