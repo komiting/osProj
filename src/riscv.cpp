@@ -7,6 +7,8 @@
 #include "../h/syscall_c.h"
 #include "../h/Semaphore.hpp"
 #include "../h/myConsole.hpp"
+
+#include "../test/printing.hpp"
 void Riscv::popSppSpie() //ova fja moze biti interesantna ako nas interesuje kada ce neki procesor promeniti kontekst
 {
     //hocemo da se vratimo tamo gde ce ova funkcija biti pozvana (threadWrapper), ne mozemo samo pozvati sret jer
@@ -116,6 +118,41 @@ void Riscv::handleSupervisorTrap(){
                 else ret=-1;
                 __asm__ volatile("mv a0, %0"::"r"(ret));
                 __asm__ volatile("sd a0,80(fp)");
+                break;
+            }
+            case THREAD_BLOCK:
+            {
+                thread_t* volatile handle;
+                void* start_routine;
+                void* volatile arg;
+                uint64* volatile addr;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(handle));
+                __asm__ volatile("ld %0, 8*12(fp)":"=r"(start_routine));
+                __asm__ volatile("ld %0, 8*13(fp)":"=r"(arg));
+                __asm__ volatile("ld %0, 8*14(fp)":"=r"(addr));
+                void(*body)(void*)=(void (*)(void*))start_routine;
+
+                TCB *thread =TCB::createThreadBlocked(body,arg,addr);
+                *(TCB**) handle= thread;
+                if(thread){
+                    __asm__ volatile("mv a0, %0"::"r"(0));
+                    __asm__ volatile("sd a0,80(fp)");
+                }
+                else{
+                    __asm__ volatile("mv a0, %0"::"r"(-1));
+                    __asm__ volatile("sd a0,80(fp)");
+                }
+                break;
+            }
+            case THREAD_SET_MAX:
+            {
+                int interval_time, max_time, num_of_threads;
+                __asm__ volatile("ld %0, 8*11(fp)":"=r"(num_of_threads));
+                __asm__ volatile("ld %0, 8*12(fp)":"=r"(max_time));
+                __asm__ volatile("ld %0, 8*13(fp)":"=r"(interval_time));
+
+                TCB::timeInterval=interval_time;
+                TCB::timeMaxCounter=max_time;
                 break;
             }
             case SEM_OPEN:
@@ -238,6 +275,26 @@ void Riscv::handleSupervisorTrap(){
 
         TCB::timeSliceCounter++;
         TCB::timeCur++;
+        if(TCB::timeMaxCounter!=-1){
+            if(TCB::timeMaxCounter>0) TCB::timeMaxCounter--;
+
+            if(!TCB::timeMaxCounter){
+                printString("Waiting done! \n");
+                TCB::timeMaxCounter=-2;
+            }
+            if(TCB::timeMaxCounter==-2){
+                TCB::timeIntervalCounter++;
+            }
+        }
+        if(TCB::timeIntervalCounter==TCB::timeInterval){
+            if(TCB::blockedQ.peekFirst())
+            {
+                printString("Interval time elapsed \n");
+                TCB *unblocked = TCB::blockedQ.removeFirst();
+                Scheduler::put(unblocked);
+                TCB::timeIntervalCounter=0;
+            }
+        }
         while(Scheduler::getWakeTime() && TCB::timeCur>=Scheduler::getWakeTime()){
             TCB* rising=Scheduler::getSorted();
             rising->sleep=false;

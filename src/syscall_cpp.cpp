@@ -6,6 +6,10 @@ void* operator new[](size_t size) { return mem_alloc(size); }
 void operator delete(void* addr) { mem_free(addr); }
 void operator delete[](void* addr) { mem_free(addr); }
 
+
+int Thread::max_of_threads=0;
+int Thread::curr_threads=0;
+
 Thread::Thread(void (*body)(void *), void *arg) : myHandle(nullptr),body(body),arg(arg)
 {
 
@@ -25,12 +29,24 @@ void Thread::dispatch()
 
 int Thread::start()
 {
+    if(max_of_threads){
+        if(curr_threads+1>max_of_threads){
+            return block_thread(&myHandle,body, arg);
+        }
+        else curr_threads++;
+    }
     return thread_create(&myHandle,body, arg);
 }
 
 int Thread::sleep(time_t time)
 {
     return time_sleep(time);
+}
+
+void Thread::SetMaximumThreads(int num_of_threads, int max_time, int interval_time)
+{
+    max_of_threads=num_of_threads;
+    set_max_threads(num_of_threads,max_time,interval_time);
 }
 
 

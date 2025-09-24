@@ -8,6 +8,7 @@
 
 #include "../lib/hw.h"
 #include "../h/scheduler.hpp"
+#include "../h/list.hpp"
 class TCB
 {
 public:
@@ -30,6 +31,8 @@ public:
     static TCB *createThread(Body body, void* arg, void* stackSpace);
     static TCB *createThreadBasic(Body body,void* arg);
     static TCB *createThreadKernel(Body body,void* arg, void* stackSpace);
+    static TCB *createThreadBlocked(Body body,void* arg, void* stackSpace);
+
 
     static TCB* running;
 private:
@@ -59,6 +62,19 @@ private:
     {
         if(body != nullptr) Scheduler::put(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
     }
+    TCB(Body body, uint64 timeslice,void* arg,void* stackSpace,int blocked) : body(body),arg(arg),
+                                                                                    stack((char*)stackSpace),timeSlice(timeslice),
+                                                                                    context({
+                                                                                                    (uint64) &threadWrapper, // hocemo da kad napravimo ovaj kontrolni blok sa funkcijom body, da odma udje u tu fju, tj to povratna adresa ce biti adresa fje
+                                                                                                    (uint64) & ((char*)stack)[DEFAULT_STACK_SIZE]// stek raste ka NIZIM adresama, tkd krece od najvece i spusta se dole
+                                                                                            }),
+                                                                                    finished(false),
+                                                                                    blocked(false),
+                                                                                    closed(false),
+                                                                                    sleep(false)
+    {
+        if(blocked) blockedQ.addLast(this); //jedino ako je nova rutina ovo trbea da krene da se izvrsava
+    }
     struct Context{
         uint64 ra;
         uint64 sp;
@@ -84,6 +100,10 @@ private:
     static void kernelWrapper();
     static uint64 timeSliceCounter;
     static uint64 timeCur;
+    static int timeMaxCounter;
+    static int timeInterval;
+    static int timeIntervalCounter;
+    static  List<TCB> blockedQ;
 };
 
 

@@ -12,6 +12,10 @@
 #include "../test/Threads_CPP_API_test.hpp"
 // TEST 7 (zadatak 2., testiranje da li se korisnicki kod izvrsava u korisnickom rezimu)
 #include "../test/System_Mode_test.hpp"
+// TEST 8 (modifikacija)
+#include "../test/modif_MatrixMax.hpp"
+// TEST 9 (modifikacija 2)
+#include "../test/setMaxThreads.hpp"
 #endif
 
 #if LEVEL_3_IMPLEMENTED == 1
@@ -98,6 +102,19 @@ void userMain() {
             System_Mode_test();
             printString("Test se nije uspesno zavrsio\n");
             printString("TEST 7 (zadatak 2., testiranje da li se korisnicki kod izvrsava u korisnickom rezimu)\n");
+#endif
+            break;
+        case 8:
+#if LEVEL_2_IMPLEMENTED == 1
+            modif_MatrixMax();
+            printString("TEST 8 (Max from Matrix)\n");
+#endif
+            break;
+        case 9:
+#if LEVEL_2_IMPLEMENTED == 1
+            setMaxThreads();
+            printString("TEST 9 (setMaxThreads)\n");
+
 #endif
             break;
         default:

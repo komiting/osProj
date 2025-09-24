@@ -11,6 +11,10 @@ TCB* TCB::running = nullptr;
 
 uint64 TCB::timeSliceCounter=0;
 uint64 TCB::timeCur=0;
+int TCB::timeMaxCounter=-1;
+int TCB::timeInterval=-1;
+int TCB::timeIntervalCounter=0;
+List<TCB> TCB::blockedQ;
 
 TCB *TCB::createThread(Body body, void* arg, void* stackSpace)
 {
@@ -61,5 +65,11 @@ void TCB::toSleep(uint64 wakeTime)
 {
     running->setSleep(true);
     Scheduler::putSorted(running,wakeTime);
+}
+
+TCB *TCB::createThreadBlocked(TCB::Body body, void *arg, void *stackSpace)
+{
+    return new TCB(body, DEFAULT_TIME_SLICE,arg,stackSpace,1);
+
 }
 

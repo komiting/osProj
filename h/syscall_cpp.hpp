@@ -11,10 +11,13 @@ public:
     int start ();
     static void dispatch ();
     static int sleep (time_t);
+    static void SetMaximumThreads(int num_of_threads, int max_time, int interval_time);
 protected:
     Thread ();
     virtual void run () {}
 private:
+    static int max_of_threads;
+    static int curr_threads;
     thread_t myHandle;
     void (*body)(void*); void* arg;
     static void runWrapper(void* thread){

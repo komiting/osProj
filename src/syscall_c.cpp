@@ -72,6 +72,34 @@ void thread_dispatch(){
     __asm__ volatile("ecall");
 }
 
+void set_max_threads(int num_of_threads, int max_time, int interval_time){
+    __asm__ volatile("mv a3, %0"::"r"(interval_time));
+    __asm__ volatile("mv a2, %0"::"r"(max_time));
+    __asm__ volatile("mv a1, %0"::"r"(num_of_threads));
+    __asm__ volatile("mv a0, %0"::"r"(THREAD_SET_MAX));
+    __asm__ volatile("ecall");
+}
+
+
+int block_thread (thread_t* handle, void(*start_routine)(void*),void* arg){
+    //a1=handle,a2=funkc,a3=arg
+    //ABI se razlikuje u odnosu na C API, ima dodatan argument - stack_space - a4
+    void* addr=mem_alloc(DEFAULT_STACK_SIZE);//stek raste ka nizim adresama, mi
+    //alociramo memoriju ka visim, pa poslednja lokacija steka je zapravo prva lokacija
+    //zauzete memorije
+    if(!addr) return -1;
+
+    __asm__ volatile("mv a4, %0"::"r"(addr));
+    __asm__ volatile("mv a3, %0"::"r"(arg));
+    __asm__ volatile("mv a2, %0"::"r"(start_routine));
+    __asm__ volatile("mv a1, %0"::"r"(handle));
+    __asm__ volatile("mv a0, %0"::"r"(THREAD_BLOCK));
+
+    __asm__ volatile("ecall");
+    int volatile flag;
+    __asm__ volatile("mv %0, a0":"=r"(flag));
+    return flag;
+}
 int sem_open (sem_t* handle,unsigned init){
     __asm__ volatile("mv a2, %0"::"r"(init));
     __asm__ volatile("mv a1, %0"::"r"(handle));

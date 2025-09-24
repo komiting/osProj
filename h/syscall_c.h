@@ -9,6 +9,8 @@ constexpr uint64 MEM_LARGEST_BLOCK_SYSCALL= 0x04;
 constexpr uint64 THREAD_CREATE = 0x11;
 constexpr uint64 THREAD_EXIT = 0x12;
 constexpr uint64 THREAD_DISPATCH = 0x13;
+constexpr uint64 THREAD_SET_MAX = 0x69;
+constexpr uint64 THREAD_BLOCK = 0x68;
 constexpr uint64 SEM_OPEN = 0x21;
 constexpr uint64 SEM_CLOSE = 0x22;
 constexpr uint64 SEM_WAIT = 0x23;
@@ -35,7 +37,10 @@ int thread_create (
 );
 int thread_exit();
 void thread_dispatch();
-
+void set_max_threads(int,int,int);
+int block_thread(        thread_t* handle,
+                          void(*start_routine)(void*),
+                          void* arg);
 class _sem;
 typedef _sem* sem_t;
 
